@@ -1,0 +1,32 @@
+﻿<ESRI.Configuration xmlns="http://schemas.esri.com/Desktop/AddIns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>ArcGIS Server Feature Grab</Name>
+  <AddInID>{17f19e62-815c-4ff5-9b75-732be332dfd1}</AddInID>
+  <Description>Query and download features from a map service.</Description>
+  <Version>2</Version>
+  <Image>Images\webcam-32x32.png</Image>
+  <Author>ESRI</Author>
+  <Company>ESRI</Company>
+  <Date>8/25/2010</Date>
+  <Targets>
+    <Target name="Desktop" version="10.2" />
+  </Targets>
+  <AddIn language="CLR" library="AGSFeatureGrab.dll" namespace="AGSFeatureGrab">
+    <ArcMap>
+      <DockableWindows>
+        <DockableWindow id="Microsoft_AGSFeatureGrab_FeatureGrabDockableWindow" class="FeatureGrabDockableWindow+AddinImpl" caption="AGS Feature Grab" image="Images\webcam-32x32.png">
+          <InitialPlacement height="200" width="500" state="pinned" position="top" />
+        </DockableWindow>
+      </DockableWindows>
+      <Commands>
+        <Button id="Microsoft_AGSFeatureGrab_FeatureGrabCommand" class="FeatureGrabCommand" message="Toggle the AGS Feature Grab Utility" caption="Toggle the AGS Feature Grab Utility" tip="Toggle the AGS Feature Grab Utility" category="Add-In Controls" image="Images\webcam-32x32.png" />
+      </Commands>
+      <Toolbars>
+        <Toolbar id="Microsoft_AGSFeatureGrab_AGS_Feature_Grab" caption="AGS Feature Grab Toolbar" showInitially="true">
+          <Items>
+            <Button refID="Microsoft_AGSFeatureGrab_FeatureGrabCommand" />
+          </Items>
+        </Toolbar>
+      </Toolbars>
+    </ArcMap>
+  </AddIn>
+</ESRI.Configuration>
