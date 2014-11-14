@@ -730,7 +730,7 @@ namespace AGSFeatureGrab
     {
       string sURL = this.txtMapService.Text;
 
-      if ((sURL.ToUpper().IndexOf("HTTP") < 0 && sURL.ToUpper().IndexOf("WWW") < 0) || sURL.ToUpper().IndexOf("FEATURESERVER") < 0)
+      if ((sURL.ToUpper().IndexOf("HTTP") < 0 && sURL.ToUpper().IndexOf("WWW") < 0) || (sURL.ToUpper().IndexOf("FEATURESERVER") < 0) && sURL.ToUpper().IndexOf("MAPSERVER") < 0)
       {
         MessageBox.Show("This does not appear to be a valid Feature Server Layer URL.");
         return;

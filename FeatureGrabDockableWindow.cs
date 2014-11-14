@@ -19,7 +19,8 @@ namespace AGSFeatureGrab
       InitializeComponent();
       this.Hook = hook;
 
-      this.elementHost1.Child = new UserControlUI2();
+//      this.elementHost1.Child = new UserControlUI();
+      this.elementHost1.Child = new UserControlUI3();
 
     }
 

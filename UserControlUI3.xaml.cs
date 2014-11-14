@@ -29,15 +29,15 @@ using ESRI.ArcGIS.Carto;
 namespace AGSFeatureGrab
 {
 
-  public partial class UserControlUI : UserControl
+  public partial class UserControlUI3 : UserControl
   {
     IApplication _hook = null;
-    private MapServerLayer _mapLayer = null;
+    private ServerLayer _mapLayer = null;
     int _iMaxRecordCount = 500;
     IList<int> _objectids = null;
     int _iPendingPagedQueries = 0;
 
-    public UserControlUI()
+    public UserControlUI3()
     {
       InitializeComponent();
       _hook = ArcMap.Application;
@@ -503,7 +503,7 @@ namespace AGSFeatureGrab
       for (int i = 0; i < lstFields.SelectedItems.Count; i++)
       {
         string sFieldName = lstFields.SelectedItems[i].ToString();
-        MapServerLayerField pField = getField(sFieldName);
+        ServerLayerField pField = getField(sFieldName);
 
         if (pField.type != "esriFieldTypeOID" && pField.type!="esriFieldTypeGeometry")
         {
@@ -552,7 +552,7 @@ namespace AGSFeatureGrab
       return esriFieldType.esriFieldTypeString;
     }
 
-    private MapServerLayerField getField(string sName)
+    private ServerLayerField getField(string sName)
     {
       for (int i = 0; i < _mapLayer.fields.Length; i++)
       {
@@ -671,8 +671,8 @@ namespace AGSFeatureGrab
     {
 
       System.IO.Stream strm = e.Result as System.IO.Stream;
-      System.Runtime.Serialization.Json.DataContractJsonSerializer ser = new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(MapServerLayer));
-      MapServerLayer mapL = (MapServerLayer)ser.ReadObject(strm);
+      System.Runtime.Serialization.Json.DataContractJsonSerializer ser = new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(ServerLayer));
+      ServerLayer mapL = (ServerLayer)ser.ReadObject(strm);
 
       if(mapL==null || (mapL.name==null && mapL.fields==null && mapL.geometryType==null))
       {
@@ -686,7 +686,7 @@ namespace AGSFeatureGrab
       this.lstFields.Items.Clear();
       for(int i=0;i<mapL.fields.Length;i++)
       {
-        MapServerLayerField field = mapL.fields[i];
+        ServerLayerField field = mapL.fields[i];
 
         this.lstFields.Items.Add(field.name);
         
@@ -711,6 +711,8 @@ namespace AGSFeatureGrab
 
     private int getMaximumFeatureCount(string sURL)
     {
+      if(sURL.ToUpper().IndexOf("FEATURESERVER")>0) return 0;
+
       MapServer.ESRI_Census_USA_MapServer mapservice = new MapServer.ESRI_Census_USA_MapServer();
 
       string sMapURL = sURL;
@@ -763,9 +765,9 @@ namespace AGSFeatureGrab
     {
       string sURL = this.txtMapService.Text;
 
-      if ((sURL.ToUpper().IndexOf("HTTP") < 0 && sURL.ToUpper().IndexOf("WWW") < 0) || sURL.ToUpper().IndexOf("MAPSERVER") < 0)
+      if ((sURL.ToUpper().IndexOf("HTTP") < 0 && sURL.ToUpper().IndexOf("WWW") < 0) || (sURL.ToUpper().IndexOf("MAPSERVER") < 0 &&  sURL.ToUpper().IndexOf("FEATURESERVER") < 0))
       {
-        MessageBox.Show("This does not appear to be a valid Map Server Layer URL.");
+        MessageBox.Show("This does not appear to be a valid Map or Feature Server Layer URL.");
         return;
       }
 
@@ -802,7 +804,7 @@ namespace AGSFeatureGrab
 
   }
 
-  public class MapServerLayer
+  public class ServerLayer
   {
     public string id { get; set; }
     public string name { get; set; }
@@ -815,14 +817,14 @@ namespace AGSFeatureGrab
     public double maxScale { get; set; }
     public ESRI.ArcGIS.Client.Geometry.Envelope extent { get; set; }
     public string displayField { get; set; }
-    public MapServerLayerField[] fields { get; set; }
-    public MapServerLayer parentLayer { get; set; }
-    public MapServerLayer[] subLayers { get; set; }
+    public ServerLayerField[] fields { get; set; }
+    public ServerLayer parentLayer { get; set; }
+    public ServerLayer[] subLayers { get; set; }
 
   }
 
 
-  public class MapServerLayerField
+  public class ServerLayerField
   {
     public string name { get; set; }
     public string type { get; set; }

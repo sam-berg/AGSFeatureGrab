@@ -125,6 +125,9 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Config.esriaddinx</DependentUpon>
     </Compile>
+    <Compile Include="UserControlUI3.xaml.cs">
+      <DependentUpon>UserControlUI3.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UserControlUI2.xaml.cs">
       <DependentUpon>UserControlUI2.xaml</DependentUpon>
     </Compile>
@@ -198,6 +201,10 @@
     <AddInContent Include="Images\FeatureGrabCommand.png" />
   </ItemGroup>
   <ItemGroup>
+    <Page Include="UserControlUI3.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="UserControlUI2.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
