@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.ServiceModel;
 using System.Net;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -25,6 +26,7 @@ using ESRI.ArcGIS.Geometry;
 using ESRI.ArcGIS.Geodatabase;
 using ESRI.ArcGIS.DataSourcesGDB;
 using ESRI.ArcGIS.Carto;
+using System.Windows.Threading;
 
 namespace AGSFeatureGrab
 {
@@ -36,6 +38,8 @@ namespace AGSFeatureGrab
     int _iMaxRecordCount = 500;
     IList<int> _objectids = null;
     int _iPendingPagedQueries = 0;
+
+    Dictionary<string,string> origFieldNames = new Dictionary<string,string>();
 
     public UserControlUI3()
     {
@@ -67,6 +71,8 @@ namespace AGSFeatureGrab
       this.chkInView.IsEnabled = bReady;
       //chkPage.IsEnabled = bReady;
       this.txtPageSize.IsEnabled = bReady;
+
+      chkPage.IsChecked = true;
       this.txtFeatureCount.IsEnabled = (chkPage.IsChecked==true);
       this.txtFeatureClassName.IsEnabled = bReady;
     }
@@ -87,81 +93,136 @@ namespace AGSFeatureGrab
 
     private void doNewPagedQuery()
     {
-
-     
-      //this._iMaxRecordCount
-      string sFeaturesToGet = this.txtFeatureCount.Text;
-      int iMaxRecordCount = _iMaxRecordCount;
-      int iBegin = 0;
-      int iFeatureCount = 0;// Convert.ToInt32(this.txtFeatureCount.Text);
-
-      if (sFeaturesToGet.IndexOf("-") > 0)
+      try
       {
-        iBegin=Convert.ToInt32(sFeaturesToGet.Split('-')[0]);
-        iFeatureCount = Convert.ToInt32(sFeaturesToGet.Split('-')[1]);
-        if(iFeatureCount-iBegin<iMaxRecordCount)iMaxRecordCount=iFeatureCount-iBegin;
-      }
-      else
-      {
-        iFeatureCount=Convert.ToInt32(this.txtFeatureCount.Text);
-      }
+
+        //this._iMaxRecordCount
+        _iPendingPagedQueries = 0;
+
+        string sFeaturesToGet = this.txtFeatureCount.Text;
+        int iMaxRecordCount = _iMaxRecordCount;
+        int iBegin = 0;
+        int iFeatureCount = 0;// Convert.ToInt32(this.txtFeatureCount.Text);
+
+        if (sFeaturesToGet.IndexOf("-") > 0)
+        {
+          iBegin = Convert.ToInt32(sFeaturesToGet.Split('-')[0]);
+          iFeatureCount = Convert.ToInt32(sFeaturesToGet.Split('-')[1]);
+          if (iFeatureCount - iBegin < iMaxRecordCount) iMaxRecordCount = iFeatureCount - iBegin;
+        }
+        else
+        {
+          iFeatureCount = Convert.ToInt32(this.txtFeatureCount.Text);
+        }
 
 
-     
-      IList<int> objectIDs = _objectids;
 
-      for (int i = iBegin; i < iFeatureCount; i += iMaxRecordCount)
-      {
-        _iPendingPagedQueries++;
-      }
+        IList<int> objectIDs = _objectids;
 
-      _pagedFeatureSet =null;
-      objectIDs = objectIDs.Skip(iBegin).ToList<int>();
+        for (int i = iBegin; i < iFeatureCount; i += iMaxRecordCount)
+        {
+          _iPendingPagedQueries++;
+        }
 
-      for (int i = iBegin; i < iFeatureCount; i += iMaxRecordCount)
-      {
+        _pagedFeatureSet = null;
+        objectIDs = objectIDs.Skip(iBegin).ToList<int>();
+
+        //this.progressBar.Visibility = Visibility.Visible;
+        //this.progressBar.Minimum = iBegin;
+        //this.progressBar.Maximum = iFeatureCount;
+        _hook.StatusBar.ProgressBar.MinRange = iBegin;
+        _hook.StatusBar.ProgressBar.MaxRange = iFeatureCount;
+        this._hook.StatusBar.ShowProgressBar("Grabbing Features...", iBegin, iFeatureCount, 1, true);
 
         ESRI.ArcGIS.Client.Tasks.Query query = new ESRI.ArcGIS.Client.Tasks.Query();
         QueryTask queryTask = new QueryTask(this.txtMapService.Text);
-
-        //sbtest
-        if (txtQuery.Text != null && txtQuery.Text.Length > 0)
-        {
-          query.Where = txtQuery.Text;
-        }
-        else
-        {
-          query.Where = "0=0";
-        }
-
         queryTask.ExecuteCompleted += (object sender, QueryEventArgs e) =>
         { this.PagedQueryTask_ExecuteCompleted(sender, e); };
         queryTask.Failed += PagedQueryTask_Failed;
-
-
-        if (lstFields.SelectedItems.Count == lstFields.Items.Count)
-        {
-          query.OutFields.Add("*");
-        }
-        else
-        {
-          for (int iField = 0; iField < lstFields.SelectedItems.Count; iField++)
-          {
-            query.OutFields.Add(lstFields.SelectedItems[iField].ToString());
-          }
-        }
-
-        query.ReturnGeometry = true;
-
-        query.ObjectIDs = objectIDs.Take(iMaxRecordCount).ToArray<int>();
-
-        objectIDs = objectIDs.Skip(iMaxRecordCount).ToList<int>();
-
         
-        queryTask.ExecuteAsync(query);
+        for (int i = iBegin; i < iFeatureCount; i += iMaxRecordCount)
+        {
+
+          //Action a=delegate()
+          //{
+          //  this.progressBar.Visibility = Visibility.Visible;
+          //  this.progressBar.Value = i;
+          //};
+          //Dispatcher.BeginInvoke(a);
+          _hook.StatusBar.ProgressBar.Position = i;
+          updateStatus("Grabbing Features...");
+
+          //ESRI.ArcGIS.Client.Tasks.Query query = new ESRI.ArcGIS.Client.Tasks.Query();
+          //QueryTask queryTask = new QueryTask(this.txtMapService.Text);
+
+          //sbtest
+          if (txtQuery.Text != null && txtQuery.Text.Length > 0)
+          {
+            query.Where = txtQuery.Text;
+          }
+          else
+          {
+            query.Where = "0=0";
+          }
+
+
+          if (lstFields.SelectedItems.Count == lstFields.Items.Count)
+          {
+            query.OutFields.Add("*");
+          }
+          else
+          {
+            for (int iField = 0; iField < lstFields.SelectedItems.Count; iField++)
+            {
+              query.OutFields.Add(lstFields.SelectedItems[iField].ToString());
+            }
+          }
+
+          query.ReturnGeometry = true;
+
+          query.ObjectIDs = objectIDs.Take(iMaxRecordCount).ToArray<int>();
+
+          objectIDs = objectIDs.Skip(iMaxRecordCount).ToList<int>();
+
+          try
+          {
+            FeatureSet fs = queryTask.Execute(query);
+            handleFeatureSet(fs);
+          }
+          catch (Exception ex)
+          {
+            //if query task did not come back we should _iPendingPagedQueries--;
+            //if (ex.Message.IndexOf("underlying connection") > 1) _iPendingPagedQueries--;
+
+            MessageBox.Show(ex.Message, "New Paged Query - handle feature set");
+
+            break;
+
+          }
+          
+
+
+        }
+
+
+        this._hook.StatusBar.HideProgressBar();
+        clearUI();
+        hideWorking();
+        updateStatus("Grabbing Features Completed.");
       }
-      
+      catch(Exception ex)
+      {
+        MessageBox.Show(ex.Message, "New Paged Query");
+        this._hook.StatusBar.HideProgressBar();
+      }
+
+      //this.progressBar.Visibility = Visibility.Hidden;
+      this._hook.StatusBar.HideProgressBar();
+      hideWorking();
+
     }
+
+
 
     private void showWorking()
     {
@@ -235,44 +296,175 @@ namespace AGSFeatureGrab
     FeatureSet _pagedFeatureSet = null;
     private void PagedQueryTask_ExecuteCompleted(object sender, ESRI.ArcGIS.Client.Tasks.QueryEventArgs args)
     {
+
+      try { 
+
       
-      FeatureSet featureSet = args.FeatureSet;
+        FeatureSet featureSet = args.FeatureSet;
 
-      _iPendingPagedQueries--;
+        handleFeatureSet(featureSet);
+        return;
 
-      if (_pagedFeatureSet == null)
-      {
-        _pagedFeatureSet = featureSet;
+
+        //_iPendingPagedQueries--;
+
+        //if (_pagedFeatureSet == null)
+        //{
+        //  _pagedFeatureSet = featureSet;
+        //}
+        //else
+        //{
+        //  foreach (Graphic g in featureSet.Features)
+        //  {
+        //    _pagedFeatureSet.Features.Add(g);
+        //  }
+        //}
+
+        //System.Diagnostics.Debug.WriteLine("Executed Query #" + _iPendingPagedQueries.ToString());
+        //if (_iPendingPagedQueries > 0) return;
+
+        //IFeatureClass pResultClass = LoadResult(_pagedFeatureSet);
+
+        //if (pResultClass != null && pResultClass.FeatureCount(null) > 0)
+        //{
+
+        //  IFeatureLayer pFL = new FeatureLayerClass();
+        //  pFL.Name = this.txtFeatureClassName.Text.Trim().Length > 0 ? this.txtFeatureClassName.Text : _mapLayer.name;
+        //  pFL.FeatureClass = pResultClass;
+        //  IMxDocument p = (IMxDocument)_hook.Document;
+        //  p.FocusMap.AddLayer(pFL);
+        //}
+        //else
+        //{
+        //  MessageBox.Show("No features could be retrieved. Perhaps the geometries are not queriable from this layer, or the query is too restrictive.");
+        //}
+
+        //clearUI();
+        //hideWorking();
       }
-      else
+      catch (Exception ex)
       {
-        foreach (Graphic g in featureSet.Features)
+        string e = ex.Message;
+        MessageBox.Show("Error: " + e);
+        clearUI();
+        hideWorking();
+      }
+    }
+
+    private void handleFeatureSet(FeatureSet featureSet)
+    {
+
+      try
+      {
+
+
+        _iPendingPagedQueries--;
+
+        if (_pagedFeatureSet == null)
         {
-          _pagedFeatureSet.Features.Add(g);
+          _pagedFeatureSet = featureSet;
+        }
+        else
+        {
+          foreach (Graphic g in featureSet.Features)
+          {
+            _pagedFeatureSet.Features.Add(g);
+          }
+        }
+
+        System.Diagnostics.Debug.WriteLine("Executed Query #" + _iPendingPagedQueries.ToString());
+        if (_iPendingPagedQueries > 0) return;
+
+        updateStatus("Paged Queries Complete.");
+          
+        IFeatureClass pResultClass = LoadResult(_pagedFeatureSet);
+
+        if (pResultClass != null && pResultClass.FeatureCount(null) > 0)
+        {
+          updateStatus("Creating Layer...");
+          IFeatureLayer pFL = new FeatureLayerClass();
+          pFL.Name = this.txtFeatureClassName.Text.Trim().Length > 0 ? this.txtFeatureClassName.Text : _mapLayer.name;
+          pFL.FeatureClass = pResultClass;
+          IMxDocument p = (IMxDocument)_hook.Document;
+          p.FocusMap.AddLayer(pFL);
+        }
+        else
+        {
+          MessageBox.Show("No features could be retrieved. Perhaps the geometries are not queriable from this layer, or the query is too restrictive.");
         }
       }
-      
-      if (_iPendingPagedQueries > 0) return;
-
-      IFeatureClass pResultClass = LoadResult(_pagedFeatureSet);
-
-      if (pResultClass != null && pResultClass.FeatureCount(null) > 0)
+      catch(Exception ex)
       {
 
-        IFeatureLayer pFL = new FeatureLayerClass();
-        pFL.Name = this.txtFeatureClassName.Text.Trim().Length > 0 ? this.txtFeatureClassName.Text : _mapLayer.name;
-        pFL.FeatureClass = pResultClass;
-        IMxDocument p = (IMxDocument)_hook.Document;
-        p.FocusMap.AddLayer(pFL);
-      }
-      else
-      {
-        MessageBox.Show("No features could be retrieved. Perhaps the geometries are not queriable from this layer, or the query is too restrictive.");
+        MessageBox.Show(ex.Message, "Error");
       }
 
       clearUI();
       hideWorking();
+
     }
+    private void PagedQueryTask_ExecuteCompleted2(object sender, ESRI.ArcGIS.Client.Tasks.QueryEventArgs args)
+    {
+
+      try
+      {
+
+
+        FeatureSet featureSet = args.FeatureSet;
+
+        _iPendingPagedQueries--;
+
+        if (_pagedFeatureSet == null)
+        {
+          _pagedFeatureSet = featureSet;
+        }
+        else
+        {
+          foreach (Graphic g in featureSet.Features)
+          {
+            _pagedFeatureSet.Features.Add(g);
+          }
+        }
+
+        System.Diagnostics.Debug.WriteLine("Executed Query #" + _iPendingPagedQueries.ToString());
+        if (_iPendingPagedQueries > 0) return;
+
+        IFeatureClass pResultClass = LoadResult(_pagedFeatureSet);
+
+        if (pResultClass != null && pResultClass.FeatureCount(null) > 0)
+        {
+
+          IFeatureLayer pFL = new FeatureLayerClass();
+          pFL.Name = this.txtFeatureClassName.Text.Trim().Length > 0 ? this.txtFeatureClassName.Text : _mapLayer.name;
+          pFL.FeatureClass = pResultClass;
+          IMxDocument p = (IMxDocument)_hook.Document;
+          p.FocusMap.AddLayer(pFL);
+        }
+        else
+        {
+          MessageBox.Show("No features could be retrieved. Perhaps the geometries are not queriable from this layer, or the query is too restrictive.");
+        }
+
+        clearUI();
+        hideWorking();
+      }
+      catch (Exception ex)
+      {
+        string e = ex.Message;
+        MessageBox.Show("Error: " + e,"Paged Query Task Error");
+        clearUI();
+        hideWorking();
+      }
+    }
+
+    
+    private void updateStatus(string sStatus)
+    {
+      System.Diagnostics.Debug.WriteLine("updateStatus: " + sStatus);
+      this._hook.StatusBar.set_Message(0,sStatus);
+
+    }
+
 
     private IFeatureClass LoadResult(FeatureSet featureSet)
     {
@@ -282,7 +474,7 @@ namespace AGSFeatureGrab
       try
       {
         IWorkspace pWorkspace = CreateInMemoryWorkspace();
-        string sFeatureLayerName = this.txtFeatureClassName.Text.Trim().Length > 0 ? this.txtFeatureClassName.Text : _mapLayer.name;
+        string sFeatureLayerName = this.txtFeatureClassName.Text.Trim().Length > 0 ? getValidFieldName( this.txtFeatureClassName.Text) : getValidFieldName( _mapLayer.name);
         IFields fieldsCollection = CreateFields();
 
         pFC = CreateStandaloneFeatureClass(pWorkspace, sFeatureLayerName, fieldsCollection, "SHAPE");
@@ -316,7 +508,7 @@ namespace AGSFeatureGrab
         sError = ex.Message;
 
       }
-      if (sError != null) MessageBox.Show(sError);
+      if (sError != null) MessageBox.Show(sError,"Load Result");
       return pFC;
 
     }
@@ -324,15 +516,31 @@ namespace AGSFeatureGrab
     private void copyAttributes(Graphic pElement, IFeature pFeat)
     {
 
-      for (int i = 0; i < pFeat.Fields.FieldCount; i++)
+      try
       {
-        if (pFeat.Fields.Field[i].Type != esriFieldType.esriFieldTypeGeometry && pFeat.Fields.Field[i].Type != esriFieldType.esriFieldTypeOID && pFeat.Fields.Field[i].Type != esriFieldType.esriFieldTypeGlobalID)
+        for (int i = 0; i < pFeat.Fields.FieldCount; i++)
         {
-          string sFieldName = pFeat.Fields.Field[i].Name;
-          object oValue = pElement.Attributes[sFieldName];
+          if (pFeat.Fields.Field[i].Type != esriFieldType.esriFieldTypeGeometry && pFeat.Fields.Field[i].Type != esriFieldType.esriFieldTypeOID && pFeat.Fields.Field[i].Type != esriFieldType.esriFieldTypeGlobalID)
+          {
 
-          pFeat.Value[pFeat.Fields.FindField(sFieldName)] = oValue;
+            string sFieldName = pFeat.Fields.Field[i].Name;
+
+            string sOrigName = sFieldName;
+            if (origFieldNames.ContainsKey(sFieldName))
+              sOrigName = origFieldNames[sFieldName];
+
+            object oValue = pElement.Attributes[sOrigName];
+
+            // pFeat.Value[pFeat.Fields.FindField(sFieldName)] = oValue;
+            pFeat.Value[pFeat.Fields.FindField(sFieldName)] = oValue;
+
+          }
         }
+      }
+      catch(Exception ex)
+      {
+
+        MessageBox.Show(ex.Message, "copyAttributes");
       }
 
     }
@@ -428,8 +636,10 @@ namespace AGSFeatureGrab
 
     private IFields CreateFields()
     {
+
       // Create a fields collection.
       IFields fields = new FieldsClass();
+      origFieldNames = new Dictionary<string, string>();
 
       // Cast to IFieldsEdit to modify the properties of the fields collection.
       IFieldsEdit fieldsEdit = (IFieldsEdit)fields;
@@ -512,7 +722,13 @@ namespace AGSFeatureGrab
 
           // Cast to IFieldEdit to modify the properties of the new field.
           IFieldEdit ppFieldEdit = (IFieldEdit)ppField;
-          ppFieldEdit.Name_2 = pField.name;
+
+          string sOFieldName=pField.name;
+          string sNewName = getValidFieldName(pField.name);
+          ppFieldEdit.Name_2 = sNewName;// getValidFieldName(pField.name);
+          origFieldNames.Add(sNewName,sOFieldName );
+          
+
           ppFieldEdit.AliasName_2 = pField.alias;
           ppFieldEdit.Type_2 = getFieldType(pField.type);
           fieldsEdit.AddField(ppField);
@@ -521,6 +737,18 @@ namespace AGSFeatureGrab
       }
 
       return fields;
+    }
+
+    private string getValidFieldName(string sInputName)
+    {
+      
+
+      string s = "";
+      s = sInputName.Replace(".", "_");//sbtest todo
+      s = s.Replace(" ", "_");
+
+      return s;
+
     }
 
     private esriGeometryType getGeometryType(string sType)
